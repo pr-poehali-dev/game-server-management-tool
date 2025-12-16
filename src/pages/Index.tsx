@@ -90,6 +90,7 @@ export default function Index() {
   const [servers, setServers] = useState<Server[]>(mockServers);
   const [players] = useState<Player[]>(mockPlayers);
   const [isAddServerOpen, setIsAddServerOpen] = useState(false);
+  const [loadingServers, setLoadingServers] = useState<Set<string>>(new Set());
   const [newServer, setNewServer] = useState({
     name: '',
     game: 'Minecraft' as 'Minecraft' | 'FiveM' | 'Rust',
@@ -99,6 +100,62 @@ export default function Index() {
 
   const totalPlayers = servers.reduce((sum, s) => sum + s.players, 0);
   const onlineServers = servers.filter(s => s.status === 'online').length;
+
+  const handleServerAction = (serverId: string, action: 'start' | 'stop' | 'restart') => {
+    const server = servers.find(s => s.id === serverId);
+    if (!server) return;
+
+    setLoadingServers(prev => new Set(prev).add(serverId));
+
+    setTimeout(() => {
+      setServers(prevServers => 
+        prevServers.map(s => {
+          if (s.id === serverId) {
+            if (action === 'start') {
+              return {
+                ...s,
+                status: 'online' as const,
+                cpu: Math.floor(Math.random() * 50) + 30,
+                ram: Math.floor(Math.random() * 40) + 40,
+                players: Math.floor(Math.random() * s.maxPlayers * 0.7),
+                uptime: '0ч 1м'
+              };
+            } else if (action === 'stop') {
+              return {
+                ...s,
+                status: 'offline' as const,
+                cpu: 0,
+                ram: 0,
+                players: 0,
+                uptime: '0ч'
+              };
+            } else if (action === 'restart') {
+              return {
+                ...s,
+                cpu: Math.floor(Math.random() * 50) + 30,
+                ram: Math.floor(Math.random() * 40) + 40,
+                uptime: '0ч 1м'
+              };
+            }
+          }
+          return s;
+        })
+      );
+
+      setLoadingServers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(serverId);
+        return newSet;
+      });
+
+      const actionText = action === 'start' ? 'запущен' : action === 'stop' ? 'остановлен' : 'перезапущен';
+      toast({
+        title: `Сервер ${actionText}`,
+        description: `${server.name} успешно ${actionText}`,
+        className: 'bg-neon-green text-background'
+      });
+    }, 2000);
+  };
 
   const handleAddServer = () => {
     if (!newServer.name || !newServer.ip) {
@@ -283,25 +340,41 @@ export default function Index() {
                       <Button 
                         size="sm" 
                         variant="outline" 
-                        className="border-neon-green hover:bg-neon-green hover:text-background"
-                        disabled={server.status === 'online'}
+                        className="border-neon-green hover:bg-neon-green hover:text-background transition-all"
+                        disabled={server.status === 'online' || loadingServers.has(server.id)}
+                        onClick={() => handleServerAction(server.id, 'start')}
                       >
-                        <Icon name="Play" size={16} />
+                        {loadingServers.has(server.id) ? (
+                          <Icon name="Loader2" size={16} className="animate-spin" />
+                        ) : (
+                          <Icon name="Play" size={16} />
+                        )}
                       </Button>
                       <Button 
                         size="sm" 
                         variant="outline" 
-                        className="border-destructive hover:bg-destructive hover:text-background"
-                        disabled={server.status === 'offline'}
+                        className="border-destructive hover:bg-destructive hover:text-background transition-all"
+                        disabled={server.status === 'offline' || loadingServers.has(server.id)}
+                        onClick={() => handleServerAction(server.id, 'stop')}
                       >
-                        <Icon name="Square" size={16} />
+                        {loadingServers.has(server.id) ? (
+                          <Icon name="Loader2" size={16} className="animate-spin" />
+                        ) : (
+                          <Icon name="Square" size={16} />
+                        )}
                       </Button>
                       <Button 
                         size="sm" 
                         variant="outline" 
-                        className="border-neon-cyan hover:bg-neon-cyan hover:text-background"
+                        className="border-neon-cyan hover:bg-neon-cyan hover:text-background transition-all"
+                        disabled={loadingServers.has(server.id)}
+                        onClick={() => handleServerAction(server.id, 'restart')}
                       >
-                        <Icon name="RotateCw" size={16} />
+                        {loadingServers.has(server.id) ? (
+                          <Icon name="Loader2" size={16} className="animate-spin" />
+                        ) : (
+                          <Icon name="RotateCw" size={16} />
+                        )}
                       </Button>
                       <Button 
                         size="sm" 
