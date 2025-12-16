@@ -6,6 +6,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Icon from '@/components/ui/icon';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from '@/components/ui/use-toast';
 
 interface Server {
   id: string;
@@ -82,11 +87,52 @@ const mockLogs = [
 ];
 
 export default function Index() {
-  const [servers] = useState<Server[]>(mockServers);
+  const [servers, setServers] = useState<Server[]>(mockServers);
   const [players] = useState<Player[]>(mockPlayers);
+  const [isAddServerOpen, setIsAddServerOpen] = useState(false);
+  const [newServer, setNewServer] = useState({
+    name: '',
+    game: 'Minecraft' as 'Minecraft' | 'FiveM' | 'Rust',
+    ip: '',
+    maxPlayers: '100'
+  });
 
   const totalPlayers = servers.reduce((sum, s) => sum + s.players, 0);
   const onlineServers = servers.filter(s => s.status === 'online').length;
+
+  const handleAddServer = () => {
+    if (!newServer.name || !newServer.ip) {
+      toast({
+        title: 'Ошибка',
+        description: 'Заполните все обязательные поля',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const server: Server = {
+      id: String(servers.length + 1),
+      name: newServer.name,
+      game: newServer.game,
+      status: 'offline',
+      players: 0,
+      maxPlayers: parseInt(newServer.maxPlayers),
+      ip: newServer.ip,
+      cpu: 0,
+      ram: 0,
+      uptime: '0ч'
+    };
+
+    setServers([...servers, server]);
+    setIsAddServerOpen(false);
+    setNewServer({ name: '', game: 'Minecraft', ip: '', maxPlayers: '100' });
+    
+    toast({
+      title: 'Сервер добавлен',
+      description: `${server.name} успешно добавлен в панель`,
+      className: 'bg-neon-cyan text-background'
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -96,7 +142,10 @@ export default function Index() {
             <h1 className="text-4xl font-bold neon-glow mb-2">GamePanel</h1>
             <p className="text-muted-foreground">Панель управления игровыми серверами</p>
           </div>
-          <Button className="bg-neon-cyan hover:bg-neon-cyan/80 text-background font-bold">
+          <Button 
+            className="bg-neon-cyan hover:bg-neon-cyan/80 text-background font-bold"
+            onClick={() => setIsAddServerOpen(true)}
+          >
             <Icon name="Plus" className="mr-2" size={18} />
             Добавить сервер
           </Button>
@@ -402,6 +451,115 @@ export default function Index() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <Dialog open={isAddServerOpen} onOpenChange={setIsAddServerOpen}>
+          <DialogContent className="bg-card border-neon-cyan/50 max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-2xl flex items-center gap-2">
+                <Icon name="ServerCog" className="text-neon-cyan" size={24} />
+                Добавить сервер
+              </DialogTitle>
+              <DialogDescription>
+                Укажите параметры нового игрового сервера
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name" className="text-sm font-medium">
+                  Название сервера *
+                </Label>
+                <Input
+                  id="name"
+                  placeholder="Например: RU PvP #1"
+                  value={newServer.name}
+                  onChange={(e) => setNewServer({ ...newServer, name: e.target.value })}
+                  className="border-neon-cyan/30 focus:border-neon-cyan"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="game" className="text-sm font-medium">
+                  Тип игры *
+                </Label>
+                <Select
+                  value={newServer.game}
+                  onValueChange={(value: 'Minecraft' | 'FiveM' | 'Rust') => 
+                    setNewServer({ ...newServer, game: value })
+                  }
+                >
+                  <SelectTrigger className="border-neon-cyan/30 focus:border-neon-cyan">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-neon-cyan/30">
+                    <SelectItem value="Minecraft">
+                      <div className="flex items-center gap-2">
+                        <Icon name="Box" size={16} className="text-neon-cyan" />
+                        Minecraft
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="FiveM">
+                      <div className="flex items-center gap-2">
+                        <Icon name="Car" size={16} className="text-neon-purple" />
+                        FiveM
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="Rust">
+                      <div className="flex items-center gap-2">
+                        <Icon name="Flame" size={16} className="text-neon-green" />
+                        Rust
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="ip" className="text-sm font-medium">
+                  IP:Порт *
+                </Label>
+                <Input
+                  id="ip"
+                  placeholder="192.168.1.100:25565"
+                  value={newServer.ip}
+                  onChange={(e) => setNewServer({ ...newServer, ip: e.target.value })}
+                  className="border-neon-cyan/30 focus:border-neon-cyan font-mono"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="maxPlayers" className="text-sm font-medium">
+                  Максимум игроков
+                </Label>
+                <Input
+                  id="maxPlayers"
+                  type="number"
+                  placeholder="100"
+                  value={newServer.maxPlayers}
+                  onChange={(e) => setNewServer({ ...newServer, maxPlayers: e.target.value })}
+                  className="border-neon-cyan/30 focus:border-neon-cyan"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsAddServerOpen(false)}
+                className="border-muted-foreground/30 hover:bg-muted"
+              >
+                Отмена
+              </Button>
+              <Button
+                onClick={handleAddServer}
+                className="bg-neon-cyan hover:bg-neon-cyan/80 text-background font-bold"
+              >
+                <Icon name="Plus" className="mr-2" size={16} />
+                Добавить
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
